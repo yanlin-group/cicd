@@ -29,7 +29,7 @@ NO healthy targets
 
 With `alb pod_readiness_gate` enabled, it is guarenteed that there's always at least one health target available for the target group.
 
-Ideally, this can make sure we get zero downtime. But in reality, we can still observe 5xx errors.
+Ideally, we can expect zero downtime. But in reality, we can still observe 5xx errors.
 
 <details>
     <summary>5xx errors with healthy targets example one</summary>
