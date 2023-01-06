@@ -108,7 +108,6 @@ Example one shows target `"10.0.1.99"` is still receiving traffic. But its pod h
 <details>
     <summary>5xx errors with healthy targets example two</summary>
 
-    ```
     20 starts kube pod [2023-01-06 18:38:51] ;
     NAME                               READY   STATUS    RESTARTS   AGE   IP           NODE                                            NOMINATED NODE   READINESS GATES
     jiameng-api-dev-7cf4b975b4-5d6jb   1/1     Running   0          35s   10.0.1.109   ip-10-0-1-89.cn-northwest-1.compute.internal    <none>           1/1
@@ -174,7 +173,6 @@ Example one shows target `"10.0.1.99"` is still receiving traffic. But its pod h
     </html>
     ;
     20 ends curl 23-01-06 18:39:00;
-    ```
 </details>
 
 Example two show the two draining targets `"10.0.1.99"` and `"10.0.2.61"` are still receiving traffic. But their pods have already exited, then we get 502.
@@ -204,7 +202,6 @@ This time, we don't see 5xx errors, but we can observe result like below.
 <details>
     <summary>Draining target without its associated pod available</summary>
 
-    ```
     35 starts kube pod [2023-01-06 19:41:34] ;
     NAME                               READY   STATUS        RESTARTS   AGE   IP           NODE                                            NOMINATED NODE   READINESS GATES
     jiameng-api-dev-559b96d846-vpvhg   1/1     Terminating   0          11m   10.0.2.235   ip-10-0-2-240.cn-northwest-1.compute.internal   <none>           1/1
@@ -265,7 +262,6 @@ This time, we don't see 5xx errors, but we can observe result like below.
     35 starts curl  [2023-01-06 19:41:36] ;
     ok;
     35 ends curl 23-01-06 19:41:36;
-    ```
 </details>
 
 Target `"10.0.1.109"` is in draining target, but its pod is already terminated after 40 seconds. Even though we don't get 5xx error this time, there's still a chance that the draining target can be used for traffic from past test experience.
@@ -287,7 +283,6 @@ Now Pod can live for 40 seconds before terminated, and its target can stay in `d
 <details>
     <summary>Pod lives withbut without its associated target</summary>
 
-    ```
     30 starts kube pod [2023-01-06 20:11:48] ;
     NAME                               READY   STATUS        RESTARTS   AGE   IP           NODE                                            NOMINATED NODE   READINESS GATES
     jiameng-api-dev-6cd554685-l46jz    1/1     Running       0          37s   10.0.2.134   ip-10-0-2-240.cn-northwest-1.compute.internal   <none>           1/1
@@ -336,7 +331,6 @@ Now Pod can live for 40 seconds before terminated, and its target can stay in `d
     30 starts curl  [2023-01-06 20:11:50] ;
     ok;
     30 ends curl 23-01-06 20:11:50;
-    ```
 </details>
 
 We can see this pod `"10.0.1.99"` lives, but it doesn't have one target associated with it now. This is exactly what we want to see.
