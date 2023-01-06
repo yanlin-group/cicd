@@ -34,7 +34,6 @@ Ideally, we can expect zero downtime. But in reality, we can still observe 5xx e
 <details>
     <summary>5xx errors with healthy targets example one</summary>
 
-    ```
     15 starts kube pod [2023-01-06 18:38:37] ;
     NAME                               READY   STATUS    RESTARTS   AGE     IP           NODE                                            NOMINATED NODE   READINESS GATES
     jiameng-api-dev-76486b6497-7pj88   1/1     Running   0          8m41s   10.0.2.61    ip-10-0-2-240.cn-northwest-1.compute.internal   <none>           1/1
@@ -101,7 +100,7 @@ Ideally, we can expect zero downtime. But in reality, we can still observe 5xx e
     </html>
     ;
     15 ends curl 23-01-06 18:38:44;
-    ```
+
 </details>
 
 Example one shows target `"10.0.1.99"` is still receiving traffic. But its pod has already exited, then we get 502.
