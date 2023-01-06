@@ -103,7 +103,9 @@ Ideally, we can expect zero downtime. But in reality, we can still observe 5xx e
 
 </details>
 
-Example one shows target `"10.0.1.99"` is still receiving traffic. But its pod has already exited, then we get 502.
+Example one shows `draining` target `"10.0.1.99"` is still receiving traffic. But its pod has already exited, then we get 502.
+
+The inital target `"10.0.2.45"` may also receive this request in this case, even we can see its `READINESS GATES` is not ready yet. With this question in mind, we move to the next example.
 
 <details>
     <summary>5xx errors with healthy targets example two</summary>
@@ -175,7 +177,7 @@ Example one shows target `"10.0.1.99"` is still receiving traffic. But its pod h
     20 ends curl 23-01-06 18:39:00;
 </details>
 
-Example two show the two draining targets `"10.0.1.99"` and `"10.0.2.61"` are still receiving traffic. But their pods have already exited, then we get 502.
+Example two is a more clear example, that it shows the two draining targets `"10.0.1.99"` and `"10.0.2.61"` are still receiving traffic. But their pods have already exited, then we get 502. If the other two health targets get this request, we should get 200.
 
 According to [Deregistration delay](https://docs.aws.amazon.com/elasticloadbalancing/latest/network/load-balancer-target-groups.html#deregistration-delay), 
 
@@ -281,7 +283,7 @@ For test purpose, we set Deregistration delay time to be 35 seconds for target g
 Now Pod can live for 40 seconds before terminated, and its target can stay in `draining` state for only 35 seconds. We should expect to see result that one Pod is still available, but its associated target has become `unused`.
 
 <details>
-    <summary>Pod lives withbut without its associated target</summary>
+    <summary>Pod lives without its associated target</summary>
 
     30 starts kube pod [2023-01-06 20:11:48] ;
     NAME                               READY   STATUS        RESTARTS   AGE   IP           NODE                                            NOMINATED NODE   READINESS GATES
@@ -333,7 +335,7 @@ Now Pod can live for 40 seconds before terminated, and its target can stay in `d
     30 ends curl 23-01-06 20:11:50;
 </details>
 
-We can see this pod `"10.0.1.99"` lives, but it doesn't have one target associated with it now. This is exactly what we want to see.
+We can see this pod `"10.0.1.99"` lives, but it doesn't have one associated target now. This is exactly what we want to see.
 
 To sum up, we need to keep pod living longer than its associated target, i.e, for these four values
 
