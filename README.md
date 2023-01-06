@@ -60,3 +60,5 @@ It means when no `healthy` targets are available, the `draining` state targets a
 To take above abservation into next step, we may do some traffic track at app level to see which pod is actually serving the traffic when no healthy targets are available. Or use aws cloud trail related tools to see which alb target has been used to reroute the traffic when no healthy targets exist.
 
 Due to our workload, we didn't do further verification. But if you are interested, feel free to share with us about what result you have verified ^
+
+Big thanks to aws solution architect [chenxqdu](https://github.com/chenxqdu) for discussion to verify above alb zero downtime observation.
