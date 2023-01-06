@@ -33,6 +33,7 @@ Ideally, we can expect zero downtime. But in reality, we can still observe 5xx e
 
 <details>
     <summary>5xx errors with healthy targets example one</summary>
+
     ```
     15 starts kube pod [2023-01-06 18:38:37] ;
     NAME                               READY   STATUS    RESTARTS   AGE     IP           NODE                                            NOMINATED NODE   READINESS GATES
@@ -108,6 +109,7 @@ Example one shows target `"10.0.1.99"` is still receiving traffic. But its pod h
 
 <details>
     <summary>5xx errors with healthy targets example two</summary>
+
     ```
     20 starts kube pod [2023-01-06 18:38:51] ;
     NAME                               READY   STATUS    RESTARTS   AGE   IP           NODE                                            NOMINATED NODE   READINESS GATES
@@ -203,6 +205,7 @@ This time, we don't see 5xx errors, but we can observe result like below.
 
 <details>
     <summary>Draining target without its associated pod available</summary>
+
     ```
     35 starts kube pod [2023-01-06 19:41:34] ;
     NAME                               READY   STATUS        RESTARTS   AGE   IP           NODE                                            NOMINATED NODE   READINESS GATES
@@ -285,6 +288,7 @@ Now Pod can live for 40 seconds before terminated, and its target can stay in `d
 
 <details>
     <summary>Pod lives withbut without its associated target</summary>
+
     ```
     30 starts kube pod [2023-01-06 20:11:48] ;
     NAME                               READY   STATUS        RESTARTS   AGE   IP           NODE                                            NOMINATED NODE   READINESS GATES
