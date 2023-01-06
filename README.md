@@ -177,7 +177,7 @@ The inital target `"10.0.2.45"` may also receive this request in this case, even
     20 ends curl 23-01-06 18:39:00;
 </details>
 
-Example two is a more clear example, that it shows the two draining targets `"10.0.1.99"` and `"10.0.2.61"` are still receiving traffic. But their pods have already exited, then we get 502. If the other two health targets get this request, we should get 200.
+Example two is a more clear example, that it shows the two `draining` targets `"10.0.1.99"` and `"10.0.2.61"` are still receiving traffic. But their pods have already exited, then we get 502. If the other two health targets get this request, we should get 200.
 
 According to [Register targets](https://docs.aws.amazon.com/elasticloadbalancing/latest/application/target-group-register-targets.html)
 
@@ -272,13 +272,11 @@ Now we run the test script again, and this time, we don't see 5xx errors, but we
     35 ends curl 23-01-06 19:41:36;
 </details>
 
-Target `"10.0.1.109"` is in draining target, but its pod is already terminated after 40 seconds. Even though we don't get 5xx error this time, there's still a chance that the draining target can be used for traffic from past test experience.
+Target `"10.0.1.109"` is in `draining` target, but its pod is already terminated after 40 seconds. Even though we don't get 5xx error this time, there's still a chance that the `draining` target can be used for traffic from past test experience.
 
 According to [Deregistration delay](https://docs.aws.amazon.com/elasticloadbalancing/latest/application/load-balancer-target-groups.html#deregistration-delay), 
 
 > The initial state of a deregistering target is draining. By default, the load balancer changes the state of a deregistering target to unused after 300 seconds. 
-
-According to [Connection idle timeout](https://docs.aws.amazon.com/elasticloadbalancing/latest/application/application-load-balancers.html)
 
 So here we want to decrease target Deregistration delay time to make sure pod could live longer than its `draining` state target.
 
