@@ -32,9 +32,6 @@ test:
   image: docker:20.10.16
   script:
     - echo "This job tests something"
-  rules:
-    # only deploy for branch main & develop
-    - if: ($CI_COMMIT_BRANCH == "test")
 
 deploy:
   stage: deploy
