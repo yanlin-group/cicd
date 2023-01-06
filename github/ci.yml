@@ -1,0 +1,56 @@
+on: [push]
+name: Test
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    services:
+      redis:
+        # Docker Hub image
+        image: redis
+        ports:
+          # Maps port 6379 on service container to the host
+          - 6379:6379
+        # Set health checks to wait until redis has started
+        options: >-
+          --health-cmd "redis-cli ping"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+
+      postgres:
+        image: postgres:14.5
+        env:
+          POSTGRES_PASSWORD: password
+          POSTGRES_DB: ecommerce
+        ports:
+          - 5432:5432
+        # Set health checks to wait until postgres has started
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+    steps:
+      - name: Install Go
+        uses: actions/setup-go@v2
+        with:
+          go-version: 1.19.3
+      - name: Checkout code
+        uses: actions/checkout@v2
+      - name: Test
+        run: go test ./...
+        env:
+          STAGE: ${{ github.workspace }}/config/ci.yaml
+          POSTGRE_DB_NAME: ecommerce
+          POSTGRE_DB_USER: postgres
+          POSTGRE_DB_PASS: password
+          POSTGRE_DB_TENANT_USER: postgres
+          POSTGRE_DB_TENANT_PASS: password
+          POSTGRE_DB_HOST: localhost
+          POSTGRE_DB_PORT: 5432
+          POSTGRE_DB_SSLMODE: disable
+          POSTGRE_DB_CONN_STRING: postgres://postgres:password@localhost:5432/ecommerce?sslmode=disable
+          MIGRATION_PATH: ${{ github.workspace }}/migrations
+          REDIS_HOST: localhost
+          REDIS_PASSWORD: ""
+          REDIS_PORT: 6379

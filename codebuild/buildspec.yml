@@ -1,0 +1,48 @@
+version: 0.2
+
+env:
+  shell: bash
+  parameter-store:
+    STAGING_CODEBUILD_AWS_ACCESS_KEY_ID: 'STAGING_CODEBUILD_AWS_ACCESS_KEY_ID'
+    STAGING_CODEBUILD_AWS_SECRET_ACCESS_KEY: 'STAGING_CODEBUILD_AWS_SECRET_ACCESS_KEY'
+    STAGING_GO_APP_AWS_ACCESS_KEY_ID: 'STAGING_GO_APP_AWS_ACCESS_KEY_ID'
+    STAGING_GO_APP_AWS_SECRET_ACCESS_KEY: 'STAGING_GO_APP_AWS_SECRET_ACCESS_KEY'
+    STAGING_ACCOUNT_ID: 'STAGING_ACCOUNT_ID'
+
+phases:
+  install:
+    commands:
+      - |
+        GIT_BRANCH="$(git symbolic-ref HEAD --short 2>/dev/null)"
+        if [ "$GIT_BRANCH" = "" ] ; then
+          GIT_BRANCH="$(git rev-parse HEAD | xargs git name-rev | cut -d' ' -f2 | sed 's/remotes\/origin\///g')";
+        fi
+      - echo GIT_BRANCH - $GIT_BRANCH
+      - curl -o kubectl https://s3.cn-north-1.amazonaws.com.cn/amazon-eks/1.24.7/2022-10-31/bin/linux/amd64/kubectl
+      - chmod +x ./kubectl
+      - mkdir -p $HOME/bin && cp ./kubectl $HOME/bin/kubectl && export PATH=$PATH:$HOME/bin
+      - echo 'export PATH=$PATH:$HOME/bin' >> ~/.bashrc
+      - kubectl version --short --client
+      - aws --version
+  build:
+    commands:
+      - chmod +x codepipeline/setup_env.sh && source codepipeline/setup_env.sh
+      - docker build -t $APP . -f ./deploy/Dockerfile
+      - aws ecr get-login-password --region cn-northwest-1 | docker login --username AWS --password-stdin $AWS_ACCOUNT_ID.dkr.ecr.cn-northwest-1.amazonaws.com.cn
+      - docker tag $APP:latest $AWS_ACCOUNT_ID.dkr.ecr.cn-northwest-1.amazonaws.com.cn/$APP:$ENV
+      - docker push $AWS_ACCOUNT_ID.dkr.ecr.cn-northwest-1.amazonaws.com.cn/$APP:$ENV
+      - aws ecr wait image-scan-complete --repository-name $APP --image-id imageTag=$ENV --region cn-northwest-1
+  post_build:
+    commands:
+      - chmod +x codepipeline/setup_env.sh && source codepipeline/setup_env.sh
+      - aws eks --region=cn-northwest-1  update-kubeconfig --name=$CLUSTER_NAME
+      - sed -i "s@<APP>@$APP@g" ./deploy/k8s_deployment.yaml
+      - sed -i "s@<ENV>@$ENV@g" ./deploy/k8s_deployment.yaml
+      - sed -i "s@<DATE>@`date +%s`@g" ./deploy/k8s_deployment.yaml
+      - sed -i "s@<APP_DOMAIN>@$APP_DOMAIN@" ./deploy/k8s_deployment.yaml
+      - sed -i "s@<DOMAIN_SUFFIX>@$DOMAIN_SUFFIX@" ./deploy/k8s_deployment.yaml
+      - sed -i "s@<AWS_ACCOUNT_ID>@$AWS_ACCOUNT_ID@g" ./deploy/k8s_deployment.yaml
+      - sed -i "s@<AWS_ACCESS_KEY_ID>@$GO_APP_AWS_ACCESS_KEY_ID@g" ./deploy/k8s_deployment.yaml
+      - sed -i "s@<AWS_SECRET_ACCESS_KEY>@$GO_APP_AWS_SECRET_ACCESS_KEY@g" ./deploy/k8s_deployment.yaml
+      - kubectl apply -f ./deploy/k8s_deployment.yaml --namespace=$ENV
+      - kubectl rollout status deployment/$APP-$ENV --namespace=$ENV

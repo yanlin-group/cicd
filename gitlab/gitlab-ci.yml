@@ -1,0 +1,73 @@
+stages:
+  - test
+  - deploy
+
+image: registry.jihulab.com/yanlin/aws-cli:latest
+
+#https://docs.gitlab.com/ee/ci/docker/using_docker_build.html#use-docker-in-docker
+variables:
+  # When you use the dind service, you must instruct Docker to talk with
+  # the daemon started inside of the service. The daemon is available
+  # with a network connection instead of the default
+  # /var/run/docker.sock socket. Docker 19.03 does this automatically
+  # by setting the DOCKER_HOST in
+  # https://github.com/docker-library/docker/blob/d45051476babc297257df490d22cbd806f1b11e4/19.03/docker-entrypoint.sh#L23-L29
+  #
+  # The 'docker' hostname is the alias of the service container as described at
+  # https://docs.gitlab.com/ee/ci/services/#accessing-the-services.
+  #
+  # Specify to Docker where to create the certificates. Docker
+  # creates them automatically on boot, and creates
+  # `/certs/client` to share between the service and job
+  # container, thanks to volume mount from config.toml
+  #DOCKER_TLS_CERTDIR: "/certs"
+  DOCKER_TLS_CERTDIR: ""
+  DOCKER_HOST: tcp://docker:2375
+
+services:
+  - docker:20.10.16-dind
+
+test:
+  stage: test
+  image: docker:20.10.16
+  script:
+    - echo "This job tests something"
+  rules:
+    # only deploy for branch main & develop
+    - if: ($CI_COMMIT_BRANCH == "test")
+
+deploy:
+  stage: deploy
+  #needs: ["test"]
+  before_script:
+    - curl -o kubectl https://s3.cn-north-1.amazonaws.com.cn/amazon-eks/1.24.7/2022-10-31/bin/linux/amd64/kubectl
+    - chmod +x ./kubectl
+    - mkdir -p $HOME/bin && cp ./kubectl $HOME/bin/kubectl && export PATH=$PATH:$HOME/bin
+    - echo 'export PATH=$PATH:$HOME/bin' >> ~/.bashrc
+    - kubectl version --client
+  script:
+    # docker build image and push to ECR
+    - chmod +x .gitlab/setup_env.sh && source .gitlab/setup_env.sh
+    - docker build -t $APP . -f deploy/api/Dockerfile
+    - aws ecr get-login-password --region cn-northwest-1 | docker login --username AWS --password-stdin $AWS_ACCOUNT_ID.dkr.ecr.cn-northwest-1.amazonaws.com.cn
+    - docker tag $APP:latest $AWS_ACCOUNT_ID.dkr.ecr.cn-northwest-1.amazonaws.com.cn/$APP:$ENV
+    - docker push $AWS_ACCOUNT_ID.dkr.ecr.cn-northwest-1.amazonaws.com.cn/$APP:$ENV
+    - aws ecr wait image-scan-complete --repository-name $APP --image-id imageTag=$ENV --region cn-northwest-1
+    # kubectl apply yaml to EKS
+    - aws eks --region=cn-northwest-1  update-kubeconfig --name=$CLUSTER_NAME
+    - sed -i "s@<COMPANY_IDENTIFIER>@$COMPANY_IDENTIFIER@g" ./deploy/api/k8s_deployment.yaml
+    - sed -i "s@<AWS_ACCOUNT_TYPE>@$AWS_ACCOUNT_TYPE@g" ./deploy/api/k8s_deployment.yaml
+    - sed -i "s@<APP>@$APP@g" ./deploy/api/k8s_deployment.yaml
+    - sed -i "s@<ENV>@$ENV@g" ./deploy/api/k8s_deployment.yaml
+    - sed -i "s@<DATE>@`date +%s`@g" ./deploy/api/k8s_deployment.yaml
+    - sed -i "s@<DOMAIN_PREFIX>@$DOMAIN_PREFIX@g" ./deploy/api/k8s_deployment.yaml
+    - sed -i "s@<AWS_ACCOUNT_ID>@$AWS_ACCOUNT_ID@g" ./deploy/api/k8s_deployment.yaml
+    - sed -i "s@<AWS_ACCESS_KEY_ID>@$GO_APP_AWS_ACCESS_KEY_ID@g" ./deploy/api/k8s_deployment.yaml
+    - sed -i "s@<AWS_SECRET_ACCESS_KEY>@$GO_APP_AWS_SECRET_ACCESS_KEY@g" ./deploy/api/k8s_deployment.yaml
+    - kubectl apply -f ./deploy/api/k8s_deployment.yaml --namespace=$ENV
+    - kubectl rollout status deployment/$APP-$ENV --namespace=$ENV
+  rules:
+    # only deploy for branch main & develop
+    - if: ($CI_COMMIT_BRANCH == "main" || $CI_COMMIT_BRANCH == "develop")
+  environment:
+    name: $CI_COMMIT_REF_SLUG
