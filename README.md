@@ -1,6 +1,6 @@
 ## CI/CD
 
-We use [aliyun](https://www.aliyun.com/) and [aws](https://www.amazonaws.cn/en/) as cloud infrastructure. This repo focuses on cicd tools we've tried so far
+We use [aliyun](https://www.aliyun.com/) and [aws](https://www.amazonaws.cn/en/) as cloud infrastructure. This repo focuses on cicd tools we've tried so far.
 
 [EKS](https://www.amazonaws.cn/en/eks/) is used to run our apps. The general CI/CD workflow is:
 
@@ -11,6 +11,8 @@ We use [aliyun](https://www.aliyun.com/) and [aws](https://www.amazonaws.cn/en/)
 5. kubectl apply the yaml files to roll update the apps. I.e, pull latest image from ECR and rebuild the containers in k8s.
 
 This repo is only for a demo purpose. If you want to use this repo for your app, code from this repo should be tweaked.
+
+You may also need to add environment variables to the selected tools for CI/CD.
 
 ## AWS Zero Deployment Downtime
 

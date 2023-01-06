@@ -1,6 +1,6 @@
 export APP=jiameng-api
 
-if [ "$GIT_BRANCH" == "develop" ]; then
+if [ "$CODEBUILD_GIT_BRANCH" == "develop" ]; then
     export ENV=dev
     export DOMAIN_PREFIX=dev.
     export CLUSTER_NAME=staging
@@ -14,9 +14,9 @@ if [ "$CODEBUILD_GIT_BRANCH" == "main" ]; then
     export ENV=prod
     export DOMAIN_PREFIX=
     export CLUSTER_NAME=prod
-    export AWS_ACCESS_KEY_ID=${PROD_AWS_ACCESS_KEY_ID}
-    export AWS_SECRET_ACCESS_KEY=${PROD_AWS_SECRET_ACCESS_KEY}
+    export AWS_ACCESS_KEY_ID=$PROD_AWS_ACCESS_KEY_ID
+    export AWS_SECRET_ACCESS_KEY=$PROD_AWS_SECRET_ACCESS_KEY
     export GO_APP_AWS_ACCESS_KEY_ID=$PPROD_GO_APP_AWS_ACCESS_KEY_ID
     export GO_APP_AWS_SECRET_ACCESS_KEY=$PROD_GO_APP_AWS_SECRET_ACCESS_KEY
-    export AWS_ACCOUNT_ID=${PROD_ACCOUNT_ID}
+    export AWS_ACCOUNT_ID=$PROD_ACCOUNT_ID
 fi
