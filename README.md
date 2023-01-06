@@ -105,7 +105,7 @@ Ideally, we can expect zero downtime. But in reality, we can still observe 5xx e
 
 Example one shows `draining` target `"10.0.1.99"` is still receiving traffic. But its pod has already exited, then we get 502.
 
-The inital target `"10.0.2.45"` may also receive this request in this case, even we can see its `READINESS GATES` is not ready yet. With this question in mind, we move to the next example.
+The inital target `"10.0.2.45"` may also receive this request in this case, even we can see its `READINESS GATES` is not ready yet. With this question in mind, we move to the example two.
 
 <details>
     <summary>5xx errors with healthy targets example two</summary>
@@ -179,15 +179,21 @@ The inital target `"10.0.2.45"` may also receive this request in this case, even
 
 Example two is a more clear example, that it shows the two draining targets `"10.0.1.99"` and `"10.0.2.61"` are still receiving traffic. But their pods have already exited, then we get 502. If the other two health targets get this request, we should get 200.
 
-According to [Deregistration delay](https://docs.aws.amazon.com/elasticloadbalancing/latest/network/load-balancer-target-groups.html#deregistration-delay), 
+According to [Register targets](https://docs.aws.amazon.com/elasticloadbalancing/latest/application/target-group-register-targets.html)
 
-> If the deregistered target stays healthy and an existing connection is not idle, the load balancer can continue to send traffic to the target. 
+> The load balancer stops routing requests to a target as soon as you deregister it.
 
-Apparently, in above test cases, the draining(deregistered) targets' connection is not idle, and they are still receiving traffic.
+Apparently, in above test cases, the load balancer keeps routing requests to the draining(deregistered) targets, even in the meantime, there're healthy targets available. Either this doc is inaccurate, or our test cases are wrong in some way ^
 
-To fix this issue, we want to keep the draining targets still available to be used. If one target is in `draining` state, then its associated pod should not exit.
+However, according to [Deregistration delay](https://docs.aws.amazon.com/elasticloadbalancing/latest/application/load-balancer-target-groups.html#deregistration-delay)
 
-So we just prevent the old pods from being terminated quickly. In order to achieve this goal, we add prestop hook to k8s deployment file. Check detail at `/deploy/k8s_deployment.yaml`
+> If a deregistering target terminates the connection before the deregistration delay elapses, the client receives a 500-level error response.
+
+These 5xx errors become reasonable since our deregistering(draining) targets have closed the connection due to their pods being terminated already, and deregistration delay is not elapsed yet.
+
+Anyway, to fix this issue, we want to keep the `draining` targets still available to be used. In other words, if one target is in `draining` state, its associated pod should not exit.
+
+So we just prevent the old pods from being terminated quickly. In order to achieve this goal, we add [prestop hook](https://kubernetes.io/docs/concepts/containers/container-lifecycle-hooks/) to k8s deployment file. Check detail at `/deploy/k8s_deployment.yaml`
 
 ```
 terminationGracePeriodSeconds: 50
@@ -199,7 +205,7 @@ lifecycle:
 
 This will prevent the old pods from being terminated quickly, and can stay available for 40 seconds.
 
-This time, we don't see 5xx errors, but we can observe result like below.
+Now we run the test script again, and this time, we don't see 5xx errors, but we can observe result like below.
 
 <details>
     <summary>Draining target without its associated pod available</summary>
@@ -268,19 +274,17 @@ This time, we don't see 5xx errors, but we can observe result like below.
 
 Target `"10.0.1.109"` is in draining target, but its pod is already terminated after 40 seconds. Even though we don't get 5xx error this time, there's still a chance that the draining target can be used for traffic from past test experience.
 
-According to [Deregistration delay](https://docs.aws.amazon.com/elasticloadbalancing/latest/network/load-balancer-target-groups.html#deregistration-delay), 
+According to [Deregistration delay](https://docs.aws.amazon.com/elasticloadbalancing/latest/application/load-balancer-target-groups.html#deregistration-delay), 
 
 > The initial state of a deregistering target is draining. By default, the load balancer changes the state of a deregistering target to unused after 300 seconds. 
 
 According to [Connection idle timeout](https://docs.aws.amazon.com/elasticloadbalancing/latest/application/application-load-balancers.html)
 
-> By default, Elastic Load Balancing sets the idle timeout value for your load balancer to 60 seconds. Use the following procedure to set a different idle timeout value.
+So here we want to decrease target Deregistration delay time to make sure pod could live longer than its `draining` state target.
 
-So here we want to decrease target Deregistration delay time, and idle timeout to make sure pod could live longer than its `draining` state target.
+For test purpose, we set Deregistration delay time to be 35 seconds for target group.
 
-For test purpose, we set Deregistration delay time to be 35 seconds for target group, and 30 seconds for load balancer idle timeout. This is to make sure when target becomes unused, its connection should have been closed already.
-
-Now Pod can live for 40 seconds before terminated, and its target can stay in `draining` state for only 35 seconds. We should expect to see result that one Pod is still available, but its associated target has become `unused`.
+Now Pod can live for 40 seconds before terminated, and its target can stay in `draining` state for maximum 35 seconds. We should expect to see result that one Pod is still available, but its associated target has become `unused`.
 
 <details>
     <summary>Pod lives without its associated target</summary>
@@ -335,21 +339,24 @@ Now Pod can live for 40 seconds before terminated, and its target can stay in `d
     30 ends curl 23-01-06 20:11:50;
 </details>
 
-We can see this pod `"10.0.1.99"` lives, but it doesn't have one associated target now. This is exactly what we want to see.
+We can see this pod `"10.0.1.99"` lives, but it doesn't have one associated target now. This is exactly what we want to see!
 
-To sum up, we need to keep pod living longer than its associated target, i.e, for these four values
+To sum up, we want to keep pod living longer than its associated target, i.e, for these three values
 
 - terminationGracePeriodSeconds for pod >
 - preStop for pod >
-- Deregistration delay for target group >
-- idle timeout value for load balancer
+- Deregistration delay for target group
 
 The higher one should have larger value than the lower one.
 
-For real projects, we may want to increase the overall time, instead of `35 seconds` for Deregistration delay.
+For real projects, we may want to increase the overall time, instead of `35 seconds` for Deregistration delay. Saying, we have lengthy requests taking maximum 300 seconds, such as querying a big database, then we may want to increase the Deregistration delay to be above `300` seconds, then your in-flight requests for `draining` targets can have enough time to complete.
 
-According to [Deregistration delay](https://docs.aws.amazon.com/elasticloadbalancing/latest/network/load-balancer-target-groups.html#deregistration-delay)
+But based on our above test cases, the `draining` targets can still take new traffic, so theoretically, the delay value doesn't guarantee in-flight requests are always completed successfully.
 
-> We recommend that you specify a value of at least 120 seconds to ensure that requests are completed.
+[This blog](https://blog.davidh83110.com/blog/2021-06-24-eks-awslbcontroller-gracefully-rolling-update/) has pointed out [Connection idle timeout](https://docs.aws.amazon.com/elasticloadbalancing/latest/application/application-load-balancers.html#connection-idle-timeout) should be taken into above consideration too, that `Deregistration delay > application's own timeout > Connection idle timeout`.
 
-Big thanks to aws solution architect [chenxqdu](https://github.com/chenxqdu) for discussion, and blog [Solved - AWS LoadBalancer Controller Cannot Gracefully Rolling Update](https://blog.davidh83110.com/blog/2021-06-24-eks-awslbcontroller-gracefully-rolling-update/) for double confirmation.
+In an ideal world, it is a good practice to keep above value order. Client receives `504` when `Connection idle timeout` has reached. On the other hand, it might be confusing for client to receive `504`, since `application's own timeout` has not reached yet.
+
+In real scenarios, one project might want to keep `application's own timeout < Connection idle timeout < Deregistration delay`. In such case, client prefers to receive `502` when `application's own timeout` has reached. At least, the error has come as expected from app's view, even though the status code is not `504`.
+
+Big thanks to aws solution architect [chenxqdu](https://github.com/chenxqdu) for above discussion ^_^
