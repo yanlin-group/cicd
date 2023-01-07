@@ -107,7 +107,7 @@ Ideally, we can expect zero downtime. But in reality, we can still observe 5xx e
 
 </details>
 
-Above example shows two `draining` targets and two `healthy` targets exist in the same time. It looks like the one of the two `draining` targets is still receving traffic, otherwise we should get `200` from those other two `healthy` targets.
+Above example shows two `draining` targets and two `healthy` targets exist in the same time. It looks like one of the two `draining` targets is still receving traffic, otherwise we should get `200` from those other two `healthy` targets.
 
 To double confirm, we find above request's alb access log record. Sensitive data has been replaced with `xxxxxxxx`.
 
@@ -133,11 +133,11 @@ These 5xx errors become reasonable since our deregistering(draining) targets hav
 
 ### 5xx error cause
 
-**Load balancer has routed traffic to `draining` state target, but the connection between load balancer and the `draining` target has been closed due to target's pod being terminated**
+**Load balancer has routed traffic to `draining` state target, but the connection between load balancer and the `draining` target has been closed due to target's pod being terminated.**
 
 ### 5xx error solution
 
-To fix this issue, **we want to keep the `draining` targets always available to be used.** In other words, if one target is in `draining` state, its associated pod should not exit. In this way, we hope the connection between load balancer and `draing` target will not be closed unless target's [Connection idle timeout](https://docs.aws.amazon.com/elasticloadbalancing/latest/application/application-load-balancers.html#connection-idle-timeout) has reached.
+To fix this issue, **we want to keep the `draining` targets always available to be used. In other words, if one target is in `draining` state, its associated pod should not exit. In this way, we hope the connection between load balancer and `draing` target will not be closed unless target's [Connection idle timeout](https://docs.aws.amazon.com/elasticloadbalancing/latest/application/application-load-balancers.html#connection-idle-timeout) has reached.**
 
 So we just prevent the old pods from being terminated quickly. In order to achieve this goal, we add [prestop hook](https://kubernetes.io/docs/concepts/containers/container-lifecycle-hooks/) to k8s deployment file. Check detail at `/deploy/k8s_deployment.yaml`
 
@@ -228,7 +228,7 @@ So here we want to decrease target Deregistration delay time to make sure pod co
 
 For test purpose, we set Deregistration delay time to be 35 seconds for target group.
 
-Now Pod can live for 40 seconds before terminated, and its target can stay in `draining` state for maximum 35 seconds. We should expect to see result that one Pod is still available, but its associated target has become `unused`.
+**Now Pod can live for 40 seconds before terminated, and its target can stay in `draining` state for maximum 35 seconds.** We should expect to see result that one Pod is still available, but its associated target has become `unused`.
 
 <details>
     <summary>Pod lives without its associated target</summary>
@@ -285,7 +285,7 @@ Now Pod can live for 40 seconds before terminated, and its target can stay in `d
 
 We can see this pod `"10.0.1.99"` lives, but it doesn't have one associated target now. This is exactly what we want to see!
 
-To sum up, we want to keep pod living longer than its associated target, i.e, for these three values
+**To sum up, we want to keep pod living longer than its associated target**, i.e, for these three values
 
 - terminationGracePeriodSeconds for pod >
 - preStop for pod >
