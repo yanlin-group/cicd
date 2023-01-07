@@ -6,7 +6,7 @@ do
     aws elbv2 describe-target-health \
     --target-group-arn arn:aws-cn:elasticloadbalancing:cn-northwest-1:xxxx:targetgroup/k8s-dev-jiamenga-edb70a94b9/xxxxxxx;
     echo "$i starts curl " $(date "+[%Y-%m-%d %H:%M:%S.%6N]") \;
-    curl https://dev.api.yanlin.cn/prefix-jiameng-api/;
+    curl https://example-api.cn/prefix-jiameng-api/;
     echo \;
     echo "$i ends curl" `date "+%y-%m-%d %H:%M:%S.%6N"`\;
 done
