@@ -33,7 +33,7 @@ With `alb pod_readiness_gate` enabled, it is guarenteed that there's always at l
 
 ### 5xx error result
 
-Ideally, we can expect zero downtime. But in reality, we can still observe 5xx errors.
+Ideally, we can expect zero downtime with `alb pod_readiness_gate` enabled. But in reality, we can still observe 5xx errors.
 
 <details>
     <summary>5xx errors with healthy targets</summary>
