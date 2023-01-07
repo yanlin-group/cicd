@@ -1,6 +1,6 @@
 ## Current Tool
 
-Gitlab has company in China jihulab.com, and this is the tool we use for our code development and deployment.
+Gitlab has company in China https://jihulab.com/, and this is the tool we currently use for our code development and deployment in China network.
 
 ## Register Docker Runner
 
