@@ -154,7 +154,7 @@ This will prevent the old pods from being terminated quickly, and can stay avail
 Now we run the test script again, and this time, we don't see 5xx errors, but we can observe result like below.
 
 <details>
-    <summary>**Draining target without its associated pod available**</summary>
+    <summary>Draining target without its associated pod available</summary>
 
     35 starts kube pod [2023-01-06 19:41:34.769521] ;
     NAME                               READY   STATUS        RESTARTS   AGE   IP           NODE                                            NOMINATED NODE   READINESS GATES
