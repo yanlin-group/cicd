@@ -103,7 +103,7 @@ Ideally, we can expect zero downtime with `alb pod_readiness_gate` enabled. But 
     </body>
     </html>
     ;
-    16 ends curl 23-01-07 17:22:52.765480;
+    16 ends curl [2023-01-07 17:22:52.765480];
 
 </details>
 
@@ -215,7 +215,7 @@ Now we run the test script again, and this time, we don't see 5xx errors, but we
     }
     35 starts curl  [2023-01-06 19:41:36.510725] ;
     ok;
-    35 ends curl 23-01-06 19:41:36.741279;
+    35 ends curl [2023-01-06 19:41:36.741279];
 </details>
 
 Target `"10.0.1.109"` is in `draining` target, but its pod is already terminated after 40 seconds. Even though we don't get 5xx error this time, there's still a chance that the `draining` target can be used for traffic from past test experience.
@@ -280,7 +280,7 @@ For test purpose, we set Deregistration delay time to be 35 seconds for target g
     }
     30 starts curl  [2023-01-06 20:11:50.392375] ;
     ok;
-    30 ends curl 23-01-06 20:11:50.606315;
+    30 ends curl [2023-01-06 20:11:50.606315];
 </details>
 
 We can see this pod `"10.0.1.99"` lives, but it doesn't have one associated target now. This is exactly what we want to see!

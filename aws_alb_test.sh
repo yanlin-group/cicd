@@ -8,5 +8,5 @@ do
     echo "$i starts curl " $(date "+[%Y-%m-%d %H:%M:%S.%6N]") \;
     curl https://example-api.cn/prefix-jiameng-api/;
     echo \;
-    echo "$i ends curl" `date "+%y-%m-%d %H:%M:%S.%6N"`\;
+    echo "$i ends curl" `date "+[%Y-%m-%d %H:%M:%S.%6N]"`\;
 done
