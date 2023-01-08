@@ -44,7 +44,7 @@ We also [enabled alb access log](https://docs.amazonaws.cn/en_us/elasticloadbala
 **Here're the test steps:**
 
 * run shell script `./aws_alb_test.sh` in one terminal to send requests to load balancer
-* make change to date value `date: "<DATE>"` at `k8s_deployment.yaml` and other test changes to allow pods rebuild in next `kubectl apply` command
+* make change to date value `date: "<DATE>"` at `k8s_deployment.yaml` and other test changes to force pods rebuild in next `kubectl apply` command
 * run `kubectl apply -f k8s_deployment.yaml` in separate terminal to rebuild pods
 * observe the shell script terminal result to search 5xx errors
 
