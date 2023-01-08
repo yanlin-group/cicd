@@ -304,7 +304,7 @@ We can see this pod `"10.0.1.99"` lives, but it doesn't have one associated targ
 
 **To sum up, we want to keep pod living longer than its associated target, i.e, for these three values `terminationGracePeriodSeconds > preStop > Deregistration delay`.**
 
-For real projects, we may want to increase the overall time, instead of `35 seconds` for Deregistration delay. Saying, we have lengthy requests taking maximum 300 seconds, such as querying a big database, then we may want to increase the Deregistration delay to be above `300` seconds, then your in-flight requests for `draining` targets can have enough time to complete.
+For real projects, we may want to increase the overall time, instead of `35 seconds` for Deregistration delay. Saying, we have lengthy requests taking maximum 300 seconds, such as querying a big database, then we may want to increase the Deregistration delay to be above `300` seconds, then our in-flight requests for `draining` targets can have enough time to complete.
 
 **[This blog](https://blog.davidh83110.com/blog/2021-06-24-eks-awslbcontroller-gracefully-rolling-update/) has pointed out [Connection idle timeout](https://docs.aws.amazon.com/elasticloadbalancing/latest/application/application-load-balancers.html#connection-idle-timeout) should be taken into above consideration too, that `Deregistration delay > application's own timeout > Connection idle timeout`.**
 
