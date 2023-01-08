@@ -8,7 +8,7 @@ We use [aliyun](https://www.aliyun.com/) and [aws](https://www.amazonaws.cn/en/)
 * gitlab.cn
 * jenkins
 
-Right now, we use[EKS](https://www.amazonaws.cn/en/eks/) to run our apps. The general CI/CD workflow is:
+Right now, we use aws [EKS](https://www.amazonaws.cn/en/eks/) to run our apps. The general CI/CD workflow is:
 
 1. Push code to remote repo
 2. Test code in CI
