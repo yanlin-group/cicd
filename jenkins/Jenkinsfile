@@ -1,0 +1,74 @@
+pipeline {
+    agent none
+    environment {
+        XDG_CACHE_HOME = '/tmp/.cache'
+        RAW_APP = 'wechat-official-api'
+        IMAGE = 'yanlin/wechat-official-api'
+    }
+    stages {
+        stage('docker') {
+            agent any
+            steps {
+                script {
+                    withCredentials([string(credentialsId: 'registry', variable: 'REGISTRY')]) {
+                        script {
+                            if ("${GIT_BRANCH}"=="origin/main") {
+                                BUILD_TAG = 'prod'
+                            } else if ("${GIT_BRANCH}"=="origin/develop") {
+                                BUILD_TAG = 'dev'
+                            }
+                            APP = "${RAW_APP}-${BUILD_TAG}"
+
+                            def dockerfile = 'Dockerfile'
+                            docker.withRegistry("https://${REGISTRY}", "docker") {
+                                dockerBuild = docker.build("${IMAGE}:${BUILD_TAG}", "-f ./deploy/api/${dockerfile} .")
+                                dockerBuild.push()
+                            }
+                        }
+                    }
+                }
+
+            }
+        }
+        stage('k8s') {
+            agent any
+            steps {
+                withCredentials([string(credentialsId: 'registry', variable: 'REGISTRY'),
+                                 string(credentialsId: 'imagePullSecrets', variable: 'IMAGE_PULL_SECRETS'),
+                                 string(credentialsId: 'ossConfigAccessID', variable: 'OSS_CONFIG_ACCESS_ID'),
+                                 string(credentialsId: 'ossConfigAccessSecret', variable: 'OSS_CONFIG_ACCESS_SECRET')]) {
+                    script{
+                        sh """
+                            sed -i "s/<DATE>/`date +%s`/" ./deploy/api/k8s_deployment.yaml
+                            sed -i "s/<REGISTRY>/${REGISTRY}/" ./deploy/api/k8s_deployment.yaml
+                            sed -i "s%<IMAGE>%${IMAGE}%" ./deploy/api/k8s_deployment.yaml
+                            sed -i "s/<IMAGE_PULL_SECRETS>/${IMAGE_PULL_SECRETS}/" ./deploy/api/k8s_deployment.yaml
+                            sed -i "s/<OSS_CONFIG_ACCESS_ID>/${OSS_CONFIG_ACCESS_ID}/" ./deploy/api/k8s_deployment.yaml
+                            sed -i "s/<OSS_CONFIG_ACCESS_SECRET>/${OSS_CONFIG_ACCESS_SECRET}/" ./deploy/api/k8s_deployment.yaml
+                            sed -i "s/<RAW_APP>/${RAW_APP}/" ./deploy/api/k8s_deployment.yaml
+                            sed -i "s/<APP>/${APP}/" ./deploy/api/k8s_deployment.yaml
+                            sed -i "s/<BUILD_TAG>/${BUILD_TAG}/" ./deploy/api/k8s_deployment.yaml
+                            sed -i "s/<APP>/${APP}/" ./deploy/api/k8s_ingress.yaml
+                            sed -i "s/<BUILD_TAG>/${BUILD_TAG}/" ./deploy/api/k8s_ingress.yaml
+                            sed -i "s/<DATE>/`date +%s`/" ./deploy/api/k8s_ingress.yaml
+                            cat ./deploy/api/k8s_deployment.yaml | kubectl apply -f -
+                            cat ./deploy/api/k8s_ingress.yaml | kubectl apply -f -
+                        """
+                    }
+                }
+            }
+        }
+        stage('cleanup') {
+            agent any
+            steps {
+                script {
+                    sh """
+                        docker rmi ${IMAGE}:${BUILD_TAG}
+                        docker system prune -f
+                    """
+                    deleteDir()
+                }
+            }
+        }
+    }
+}

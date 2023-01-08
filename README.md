@@ -1,8 +1,14 @@
 ## CI/CD
 
-We use [aliyun](https://www.aliyun.com/) and [aws](https://www.amazonaws.cn/en/) as cloud infrastructure. This repo focuses on cicd tools we've tried so far.
+We use [aliyun](https://www.aliyun.com/) and [aws](https://www.amazonaws.cn/en/) as cloud infrastructure. This repo includes cicd tools we've used so far.
 
-[EKS](https://www.amazonaws.cn/en/eks/) is used to run our apps. The general CI/CD workflow is:
+* circleci
+* codebuild - aws
+* github
+* gitlab.cn
+* jenkins
+
+Right now, we use[EKS](https://www.amazonaws.cn/en/eks/) to run our apps. The general CI/CD workflow is:
 
 1. Push code to remote repo
 2. Test code in CI
