@@ -22,24 +22,35 @@ You may also need to add environment variables to the selected tools for CI/CD.
 
 ## AWS Zero Deployment Downtime
 
-We use aws [alb](https://docs.amazonaws.cn/en_us/elasticloadbalancing/latest/application/introduction.html) to configure ingress, and have two pods enabled for this test service `jiameng-api-dev` here.
+**Here's one of our deplyment scenarios:**
 
-Based on tests we've done, [alb pod_readiness_gate](https://kubernetes-sigs.github.io/aws-load-balancer-controller/v2.4/deploy/pod_readiness_gate/) reduces the Downtime, but does not 100% remove the downtime.
+* service `jiameng-api-dev` runs at aws EKS
+* service `jiameng-api-dev` has two pods
+* [aws load balancer](https://docs.amazonaws.cn/en_us/elasticloadbalancing/latest/application/introduction.html) for kubernets ingress
+* `kubctl apply` forces kubernetes pods rebuild when new changes apply to service's image in ECR
+
+To guarantee aws zero deployment downtime, we have enabled [alb pod_readiness_gate](https://kubernetes-sigs.github.io/aws-load-balancer-controller/v2.4/deploy/pod_readiness_gate/).
+
+When `alb pod_readiness_gate` is not enabled, there could be no `healthy` targets in the target group. Targets can be in either `draining` or `initial` state, but no `healthy` state.
+
+![NO healthy targets](https://yanlin-public.s3.cn-northwest-1.amazonaws.com.cn/github/aws-no-healthy-targets.jpeg)
+
+With `alb pod_readiness_gate` enabled, it is guarenteed that there's always at least one health target available for the target group. However, this only reduces the odds of 5xx error, but does not 100% remove error.
 
 We write one script to test it. See `aws_alb_test.sh`. It uses [describe-target-health](https://awscli.amazonaws.com/v2/documentation/api/latest/reference/elbv2/describe-target-health.html) to get target healthy state before sending requests to the Go app.
 
 We also [enabled alb access log](https://docs.amazonaws.cn/en_us/elasticloadbalancing/latest/application/enable-access-logging.html) to track which targets are serving our test requests.
 
-When `alb pod_readiness_gate` is not enabled, there could be no `healthy` targets in the target group. Targets can be in either `draining` or `initial` state, but no `healthy` state.
+**Here're the test steps:**
 
-NO healthy targets
-![NO healthy targets](https://yanlin-public.s3.cn-northwest-1.amazonaws.com.cn/github/aws-no-healthy-targets.jpeg)
-
-With `alb pod_readiness_gate` enabled, it is guarenteed that there's always at least one health target available for the target group.
+* run shell script `./aws_alb_test.sh` in one terminal to send requests to load balancer
+* make change to date value `date: "<DATE>"` at `k8s_deployment.yaml` and other test changes to allow pods rebuild in next `kubectl apply` command
+* run `kubectl apply -f k8s_deployment.yaml` in separate terminal to rebuild pods
+* observe the shell script terminal result to search 5xx errors
 
 ### 5xx error result
 
-Ideally, we can expect zero downtime with `alb pod_readiness_gate` enabled. But in reality, we can still observe 5xx errors.
+Ideally, we can expect zero downtime with `alb pod_readiness_gate` enabled. But in reality, we can still observe 5xx errors from shell script terminal.
 
 <details>
     <summary>5xx errors with healthy targets</summary>
@@ -115,7 +126,7 @@ Ideally, we can expect zero downtime with `alb pod_readiness_gate` enabled. But 
 
 Above example shows two `draining` targets and two `healthy` targets exist in the same time. It looks like one of the two `draining` targets is still receving traffic, otherwise we should get `200` from those other two `healthy` targets.
 
-To double confirm, we find above request's alb access log record. Sensitive data has been replaced with `xxxxxxxx`.
+To double confirm, we find above request's load balancer access log record. Sensitive data has been replaced with `xxxxxxxx`.
 
 ```
 h2 2023-01-07T09:22:52.872365Z app/k8s-apidev-95472999b0/xxxxxxxxxx 202.102.17.226:24502 10.0.2.61:1325 -1 -1 -1 504 - 49 202 "GET https://example-api.cn:443/prefix-jiameng-api/ HTTP/2.0" "curl/7.79.1" ECDHE-RSA-XXXX-GCM-SHA256 TLSv1.2 arn:aws-cn:elasticloadbalancing:cn-northwest-1:xxxxxxx:targetgroup/k8s-dev-jiamenga-edb70a94b9/081fxxxxxxxx "Root=1-63b939e2-312611fa7a64f07e63d24099" "exxample-api.cn" "arn:aws-cn:acm:cn-northwest-1:xxxxxxx:certificate/e38c0d37-5c2f-4988-81c0-xxxxxxxx" 1 2023-01-07T09:22:42.870000Z "forward" "-" "-" "10.0.2.61:1325" "-" "-" "-"
@@ -143,7 +154,7 @@ These 5xx errors become reasonable since our deregistering(draining) targets hav
 
 ### 5xx error solution
 
-To fix this issue, **we want to keep the `draining` targets always available to be used. In other words, if one target is in `draining` state, its associated pod should not exit. In this way, we hope the connection between load balancer and `draing` target will not be closed unless target's [Connection idle timeout](https://docs.aws.amazon.com/elasticloadbalancing/latest/application/application-load-balancers.html#connection-idle-timeout) has reached.**
+**To fix this issue, we want to keep the `draining` targets always available to be used. In other words, if one target is in `draining` state, its associated pod should not exit. In this way, we hope the connection between load balancer and `draing` target will not be closed unless target's [Connection idle timeout](https://docs.aws.amazon.com/elasticloadbalancing/latest/application/application-load-balancers.html#connection-idle-timeout) has reached.**
 
 So we just prevent the old pods from being terminated quickly. In order to achieve this goal, we add [prestop hook](https://kubernetes.io/docs/concepts/containers/container-lifecycle-hooks/) to k8s deployment file. Check detail at `/deploy/k8s_deployment.yaml`
 
@@ -226,7 +237,7 @@ Now we run the test script again, and this time, we don't see 5xx errors, but we
 
 Target `"10.0.1.109"` is in `draining` target, but its pod is already terminated after 40 seconds. Even though we don't get 5xx error this time, there's still a chance that the `draining` target can be used for traffic from past test experience.
 
-According to [Deregistration delay](https://docs.aws.amazon.com/elasticloadbalancing/latest/application/load-balancer-target-groups.html#deregistration-delay), 
+According to [Deregistration delay](https://docs.aws.amazon.com/elasticloadbalancing/latest/application/load-balancer-target-groups.html#deregistration-delay),
 
 > The initial state of a deregistering target is draining. By default, the load balancer changes the state of a deregistering target to unused after 300 seconds. 
 
@@ -291,13 +302,7 @@ For test purpose, we set Deregistration delay time to be 35 seconds for target g
 
 We can see this pod `"10.0.1.99"` lives, but it doesn't have one associated target now. This is exactly what we want to see!
 
-**To sum up, we want to keep pod living longer than its associated target**, i.e, for these three values
-
-- terminationGracePeriodSeconds for pod >
-- preStop for pod >
-- Deregistration delay for target group
-
-The higher one should have larger value than the lower one.
+**To sum up, we want to keep pod living longer than its associated target**, i.e, for these three values `terminationGracePeriodSeconds > preStop > Deregistration delay`.
 
 For real projects, we may want to increase the overall time, instead of `35 seconds` for Deregistration delay. Saying, we have lengthy requests taking maximum 300 seconds, such as querying a big database, then we may want to increase the Deregistration delay to be above `300` seconds, then your in-flight requests for `draining` targets can have enough time to complete.
 
@@ -305,8 +310,6 @@ But based on our above test cases, the `draining` targets can still take new tra
 
 [This blog](https://blog.davidh83110.com/blog/2021-06-24-eks-awslbcontroller-gracefully-rolling-update/) has pointed out [Connection idle timeout](https://docs.aws.amazon.com/elasticloadbalancing/latest/application/application-load-balancers.html#connection-idle-timeout) should be taken into above consideration too, that `Deregistration delay > application's own timeout > Connection idle timeout`.
 
-In an ideal world, it is a good practice to keep above value order. Client receives `504` when `Connection idle timeout` has reached. On the other hand, it might be confusing for client to receive `504`, since `application's own timeout` has not reached yet.
-
-In real scenarios, one project might want to keep `application's own timeout < Connection idle timeout < Deregistration delay`. In such case, client prefers to receive `502` when `application's own timeout` has reached. At least, the error has come as expected from app's view, even though the status code is not `504`.
+In an ideal world, it is a good practice to keep above value order. Client receives `504` when `Connection idle timeout` has reached. On the other hand, it might be confusing for client to receive `504`, since `application's own timeout` has not reached yet. Client might want to see error when app's `application's own timeout` has reached. So choose the strategy for your best.
 
 **Big thanks to aws solution architect [chenxqdu](https://github.com/chenxqdu) for above discussion ^_^**
