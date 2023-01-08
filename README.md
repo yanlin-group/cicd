@@ -306,10 +306,12 @@ We can see this pod `"10.0.1.99"` lives, but it doesn't have one associated targ
 
 For real projects, we may want to increase the overall time, instead of `35 seconds` for Deregistration delay. Saying, we have lengthy requests taking maximum 300 seconds, such as querying a big database, then we may want to increase the Deregistration delay to be above `300` seconds, then your in-flight requests for `draining` targets can have enough time to complete.
 
-But based on our above test cases, the `draining` targets can still take new traffic, so theoretically, the delay value doesn't guarantee in-flight requests are always completed successfully.
-
 [This blog](https://blog.davidh83110.com/blog/2021-06-24-eks-awslbcontroller-gracefully-rolling-update/) has pointed out [Connection idle timeout](https://docs.aws.amazon.com/elasticloadbalancing/latest/application/application-load-balancers.html#connection-idle-timeout) should be taken into above consideration too, that `Deregistration delay > application's own timeout > Connection idle timeout`.
 
-In an ideal world, it is a good practice to keep above value order. Client receives `504` when `Connection idle timeout` has reached. On the other hand, it might be confusing for client to receive `504`, since `application's own timeout` has not reached yet. Client might want to see error when app's `application's own timeout` has reached. So choose the strategy for your best.
+With this order, when `draining` target transtions to `unused` state, connection between load balancer and this target is closed already, providing no new request routed to `draining` target to keep connection open.
+
+However, even aws docs says **The load balancer stops routing requests to a target as soon as you deregister it.**, in our above test case, the `draining` targets can still take new traffic. So theoretically, these values' order might not cover edge case. 
+
+For `application's own timeout > Connection idle timeout`, client receives `5xx` when `Connection idle timeout` has reached. On the other hand, it might be confusing for client to receive `5xx`, since `application's own timeout` has not reached yet. Client might prefer to see error when app's own `application's own timeout` has reached. So choose the strategy for your best.
 
 **Big thanks to aws solution architect [chenxqdu](https://github.com/chenxqdu) for above discussion ^_^**
